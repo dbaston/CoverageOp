@@ -44,7 +44,7 @@ public class DissolveUnionTest {
             return this;
         }
         
-        public void check() {
+        public Geometry getDissolveResult() {
             long startTime, endTime;
             
             startTime = System.currentTimeMillis();
@@ -52,18 +52,34 @@ public class DissolveUnionTest {
             endTime = System.currentTimeMillis();
             
             System.out.println("DU: (" + (endTime-startTime)/1000.0 + ") " + result.toString());
-
-            //startTime = System.currentTimeMillis();
-            //Geometry gc_result = geometryCollectionUnion(geoms);
-            //endTime = System.currentTimeMillis();
-            //System.out.println("GC: (" + (endTime-startTime)/1000.0 + ") " +  gc_result.toString());
+            return result;
+        }
+        
+        public Geometry getReferenceResult() {
+            long startTime, endTime;
             
             startTime = System.currentTimeMillis();
-            Geometry uu_result = UnaryUnionOp.union(geoms, null);
+            Geometry result = UnaryUnionOp.union(geoms, null);
             endTime = System.currentTimeMillis();
 
-            System.out.println("UU: (" + (endTime-startTime)/1000.0 + ") " +  uu_result.toString());
-            assertTrue(result.equalsTopo(uu_result));
+            System.out.println("UU: (" + (endTime-startTime)/1000.0 + ") " +  result.toString());     
+            
+            return result;            
+        }
+        
+        public void checkUnchanged() {
+            GeometryFactory gfact = geoms.iterator().next().getFactory();
+            Geometry result   = getDissolveResult();
+            Geometry original = gfact.buildGeometry(geoms);
+            
+            assertTrue(result.equalsTopo(original));
+        }
+        
+        public void check() {
+            Geometry result = getDissolveResult();
+            Geometry refResult = getReferenceResult();
+
+            assertTrue(result.equalsTopo(refResult));
         }
     }
     
@@ -79,7 +95,7 @@ public class DissolveUnionTest {
     
     @Before
     public void setUp() throws Exception {
-        vtblocks = readBlocks();
+        //vtblocks = readBlocks();
     }
 
     private Geometry readWKT(String wkt) throws Exception {
@@ -99,6 +115,13 @@ public class DissolveUnionTest {
         }
         return geoms;
     }
+    
+    // ********************************************************************** //
+    // These tests check that the dissolve algorithm correctly performs a     //
+    // union on non-overlapping inputs.  The UnionChecker verifies that the   //
+    // ouput of the dissolve operation is topologically equivalent to a       //
+    // reference algorithm (UnaryUnionOp.union()                              //
+    // ********************************************************************** //
     
     @Test
     public void testAdjacentSquares() throws Exception {
@@ -159,6 +182,28 @@ public class DissolveUnionTest {
                 "  ((20 40, 20 50, 30 50, 30 40, 20 40))," +
                 "  ((40 40, 40 50, 50 50, 50 40, 40 40)))")
                 .check();
+    }
+    
+    // ********************************************************************** //
+    // These tests check that overlapping inputs are unmodified by the        //
+    // algorithm.  In other words, if there are no shared boundaries to       //
+    // dissolve, the dissolve algorithm should not alter the input.           //
+    // ********************************************************************** //
+    
+    @Test
+    public void checkOverlappingSquares() throws Exception {
+        new UnionChecker()
+                .add("POLYGON ((60 400, 170 400, 170 280, 60 280, 60 400))")
+                .add("POLYGON ((200 250, 90 250, 90 360, 200 360, 200 250))")
+                .checkUnchanged();
+    }
+    
+    @Test
+    public void checkOverlappingSquaresWithHole() throws Exception {
+        new UnionChecker()
+                .add("POLYGON ((19.2 15.25, 28.35 15.25, 28.35 8.35, 19.2 8.35, 19.2 15.25), (20 14, 22.75 14, 22.75 11.9, 20 11.9, 20 14))")
+                .add("POLYGON ((11.35 21.3, 23.7 21.3, 23.7 10.8, 11.35 10.8, 11.35 21.3))")
+                .checkUnchanged();
     }
     
     @Test
