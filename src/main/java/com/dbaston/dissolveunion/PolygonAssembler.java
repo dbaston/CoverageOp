@@ -19,7 +19,42 @@ import java.util.List;
  *
  * @author dbaston
  */
-public class PolygonAssembler {    
+public class PolygonAssembler {
+    /** addInteriorRing constructs a new Polygon using the shell and interior
+     *  rings of p, plus an additional supplied interior ring.  It does not
+     *  check that the resulting polygon is valid.
+     * @param p An input Polygon, with zero or more interior rings
+     * @param intring A Geometry representing an interior ring, either as a
+     *                LinearRing, closed LineString, or Polygon with no
+     *                interior rings.
+     * @return A new Polygon that includes the shell and interior rings of
+     *         p, plus the supplied additional interior ring.
+     */
+    public static Polygon addInteriorRing(Polygon p, Geometry intring) {
+        GeometryFactory gfact = p.getFactory();
+        LinearRing   shell = gfact.createLinearRing(p.getExteriorRing().getCoordinateSequence());
+        LinearRing[] holes = new LinearRing[p.getNumInteriorRing() + 1];
+       
+        if (intring instanceof LinearRing) {
+            holes[0] = (LinearRing) intring;
+        }
+        else if (intring instanceof LineString && ((LineString) intring).isClosed()) {
+            holes[0] = gfact.createLinearRing(((LineString) intring).getCoordinateSequence());
+        }
+        else if (intring instanceof Polygon && ((Polygon) intring).getNumInteriorRing() == 0) {
+            holes[0] = gfact.createLinearRing(((Polygon) intring).getExteriorRing().getCoordinateSequence());
+        }
+        else {
+            throw new IllegalArgumentException("Supplied ring geometry must be a LinearRing, closed LineString, or a Polygon with no interior rings.");
+        }
+
+        for (int i = 1; i < p.getNumInteriorRing(); i++) {
+            holes[i] = gfact.createLinearRing(p.getInteriorRingN(i).getCoordinateSequence());
+        }
+        
+        return gfact.createPolygon(shell, holes);
+    }
+
     public static Polygon[] getAssembled (Collection<LineString> rings) {
         if (rings.isEmpty()) {
             return new Polygon[0];
@@ -61,27 +96,27 @@ public class PolygonAssembler {
             polyIndex.insert(polys[i].getEnvelopeInternal(), i);
         }
 
-        // Associate located interior rings with each polygon
-        HashMap<Polygon, List<Polygon>> intRings = new HashMap<>();
-        // Keep track of which polygons have been identified as an interior
-        // ring of some other polygon.
-        HashSet<Polygon> intRingSet = new HashSet<>();
-                
+        int numPolys = polys.length;
         // Identify polygons that should be considered interior rings of other polygons
         for (int i = 0; i < polys.length; i++) {
-            if (intRingSet.contains(polys[i])) {
+            if (polys[i] == null) {
                 // This polygon has already been identified as an interior ring
                 // of something else...skip it.
+                numPolys -= 1;
                 continue;
             }
             
             List<Integer> potentialInteriorRings = polyIndex.query(polys[i].getEnvelopeInternal());
-            Collections.sort(potentialInteriorRings);
+            
+            // If multiple rings are within the exterior ring of a polygon,
+            // the outermost ring needs to be located first.
+            Collections.sort(potentialInteriorRings); 
+                                                      
             for (int j : potentialInteriorRings) {
                 if (i < j   // only j > i could be an interior ring of i, because an interior
                             // ring's envelope cannot have a minimum X coordinate greater than
                             // its containing shell
-                        && !intRingSet.contains(polys[j])  // make sure this polygon is not already
+                        && polys[j] != null                // make sure this polygon is not already
                                                            // identified as an interior ring of
                                                            // something else.  what would appear to be
                                                            // an interior ring of an interior ring should
@@ -90,53 +125,22 @@ public class PolygonAssembler {
                         && polys[j].getEnvelopeInternal().intersects(polys[i].getEnvelopeInternal()) // bbox isect
                         && polys[i].contains(polys[j])) { // ring is inside poly
                     
-                    // Sorry, this is ugly.  If j is inside a hole of i, then
-                    // don't consider j a hole.
-                    boolean isInsideHoleOfHole = false;
-                    Collection<Polygon> existingHoles = intRings.get(polys[i]);
-                    if (existingHoles != null) {
-                        for (Polygon hole : intRings.get(polys[i])) {
-                            if (hole.getEnvelopeInternal().intersects(polys[j].getEnvelopeInternal())
-                                    && hole.contains(polys[j])) {
-                                isInsideHoleOfHole = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!isInsideHoleOfHole) {
-                        // Register j as an interior ring of i
-                        if (!intRings.containsKey(polys[i])) {
-                            intRings.put(polys[i], new ArrayList<Polygon>());
-                        }
-                        intRings.get(polys[i]).add(polys[j]);
-                        intRingSet.add(polys[j]);                        
-                    }
+                    polys[i] = addInteriorRing(polys[i], polys[j]);
+                    polys[j] = null;
                 }
             }
         }
-        
-        // Reconstruct the polygons, incorporating the interior rings
-        // identified above.
-        Polygon[] polyArray = new Polygon[polys.length - intRingSet.size()];
-        int i = 0;
-        for (Polygon p : polys) {
-            if (intRingSet.contains(p)) {
-                continue;
+  
+        Polygon[] polyArray = new Polygon[numPolys];
+        {
+            int i = 0;
+            for (Polygon p : polys) {
+                if (p != null) {
+                    polyArray[i++] = p;
+                }
             }
-            List<Polygon> intRingList = intRings.get(p); 
-            int numIntRings = intRingList == null ? 0 : intRingList.size();
-            LinearRing[] intRingArray = new LinearRing[numIntRings];
-            LinearRing   extRing  = p.getFactory().createLinearRing(p.getExteriorRing().getCoordinates());
-            
-            for (int j = 0; j < numIntRings; j++) {
-                intRingArray[j] = p.getFactory().createLinearRing(intRingList.get(j).getExteriorRing().getCoordinates());
-            }
-        
-            polyArray[i] = p.getFactory().createPolygon(extRing, intRingArray);
-            i++;
         }
-        
+
         return polyArray;
     }
 }
