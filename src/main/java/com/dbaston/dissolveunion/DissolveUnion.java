@@ -26,67 +26,6 @@ import java.util.List;
  * @author dbaston
  */
 public class DissolveUnion {
-    /** getUniqueSegments returns a set of unique LineSegment objects that form
-     *  the boundaries of the supplied collection of geometries.
-     * @param geoms A collection of Polygons or MultiPolygons.
-     * @return A set of unique LineSegment objects
-     */
-    protected static HashSet<LineSegment> getUniqueSegments(Collection<Geometry> geoms) {
-        HashSet<Polygon> geomSet = new HashSet<>(geoms.size());
-        HashSet<LineSegment> lines = new HashSet(100*geoms.size(), 0.5F);
-
-        for (Geometry g : geoms) {
-            if (!(g instanceof Polygon || g instanceof MultiPolygon)) {
-                throw new IllegalArgumentException("Geometries must be Polygons or MultiPolygons");
-            }
-            
-            for (int i = 0; i < g.getNumGeometries(); i++) {
-                geomSet.add((Polygon) g.getGeometryN(i));
-            }
-        }
-
-        for (Polygon p : geomSet) {
-            Coordinate[][] rings = new Coordinate[1 + p.getNumInteriorRing()][];
-            
-            // Populate the array of ring coordinates
-            rings[0] = p.getExteriorRing().getCoordinates();
-            for (int i = 0; i < p.getNumInteriorRing(); i++) {
-                rings[i+1] = p.getInteriorRingN(i).getCoordinates();
-            }
-            
-            // Loop over the aray of ring coordinates, constructing LineSegments
-            // and checking them for uniqueness
-            for (int i = 0; i < rings.length; i++) {
-                for (int j = 0; j < rings[i].length - 1; j++) {
-                    LineSegment ls = new LineSegment (rings[i][j], rings[i][j+1]);
-                    ls.normalize();
-                    
-                    if (!lines.remove(ls)) {
-                        lines.add(ls);
-                    }
-                }
-            }
-        }        
-        
-        return lines;
-    }
-    
-    /** getMergedLineSegments converts the supplied collection of LineSegment
-     *  objects into LineStrings using the supplied GeometryFactory, and 
-     *  merges the resultant LineStrings using a LineMerger.  The returned
-     *  LineStrings may or may not form closed rings.
-     * @param segments
-     * @param gfact
-     * @return Collection of LineString objects.
-     */
-    protected static Collection<LineString> getMergedLineSegments(Collection<LineSegment> segments, GeometryFactory gfact) {
-        LineMerger lm = new LineMerger();
-        for (LineSegment l : segments) {
-            lm.add(l.toGeometry(gfact));
-        }
-        return lm.getMergedLineStrings();    
-    }
-    
     /** allRingsClosed determines if every one of the supplied LineStrings
      *  forms a closed ring.
      * @param rings
@@ -202,7 +141,8 @@ public class DissolveUnion {
         
         // Get the unique segments and convert them into linesrings, then
         // merge the linestrings.
-        Collection<LineString> rings = getMergedLineSegments(getUniqueSegments(geoms), gfact);
+        DuplicateSegmentRemover dsr = new DuplicateSegmentRemover(geoms);
+        Collection<LineString> rings = dsr.getMergedLineSegments(gfact);
 
         //System.out.println(gfact.buildGeometry(rings));
         

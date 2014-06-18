@@ -15,7 +15,6 @@ import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import static org.junit.Assert.*;
-import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -83,8 +82,6 @@ public class DissolveUnionTest {
         }
     }
     
-    public Collection<Geometry> vtblocks;
-    
     public DissolveUnionTest() {
     }
     
@@ -93,11 +90,6 @@ public class DissolveUnionTest {
         return gfact.createGeometryCollection(geoms.toArray(new Geometry[geoms.size()])).buffer(0.0);
     }
     
-    @Before
-    public void setUp() throws Exception {
-        //vtblocks = readBlocks();
-    }
-
     private Geometry readWKT(String wkt) throws Exception {
         return new WKTReader().read(wkt);
     }
@@ -105,7 +97,7 @@ public class DissolveUnionTest {
     private Collection<Geometry> readBlocks() throws Exception {
         ArrayList<Geometry> geoms = new ArrayList<>();
         WKTReader reader = new WKTReader();
-        BufferedReader br = new BufferedReader(new FileReader("src\\test\\resources\\blocks_ak.csv"));
+        BufferedReader br = new BufferedReader(new FileReader("src\\test\\resources\\blocks_vt.csv"));
         
         br.readLine(); // toss the header
         String line = br.readLine(); 
@@ -184,31 +176,31 @@ public class DissolveUnionTest {
                 .check();
     }
     
-    // ********************************************************************** //
-    // These tests check that overlapping inputs are unmodified by the        //
-    // algorithm.  In other words, if there are no shared boundaries to       //
-    // dissolve, the dissolve algorithm should not alter the input.           //
-    // ********************************************************************** //
-    
-    @Test
-    public void checkOverlappingSquares() throws Exception {
-        new UnionChecker()
-                .add("POLYGON ((60 400, 170 400, 170 280, 60 280, 60 400))")
-                .add("POLYGON ((200 250, 90 250, 90 360, 200 360, 200 250))")
-                .checkUnchanged();
-    }
-    
-    @Test
-    public void checkOverlappingSquaresWithHole() throws Exception {
-        new UnionChecker()
-                .add("POLYGON ((19.2 15.25, 28.35 15.25, 28.35 8.35, 19.2 8.35, 19.2 15.25), (20 14, 22.75 14, 22.75 11.9, 20 11.9, 20 14))")
-                .add("POLYGON ((11.35 21.3, 23.7 21.3, 23.7 10.8, 11.35 10.8, 11.35 21.3))")
-                .checkUnchanged();
-    }
+//    // ********************************************************************** //
+//    // These tests check that overlapping inputs are unmodified by the        //
+//    // algorithm.  In other words, if there are no shared boundaries to       //
+//    // dissolve, the dissolve algorithm should not alter the input.           //
+//    // ********************************************************************** //
+//    
+//    @Test
+//    public void checkOverlappingSquares() throws Exception {
+//        new UnionChecker()
+//                .add("POLYGON ((60 400, 170 400, 170 280, 60 280, 60 400))")
+//                .add("POLYGON ((200 250, 90 250, 90 360, 200 360, 200 250))")
+//                .checkUnchanged();
+//    }
+//    
+//    @Test
+//    public void checkOverlappingSquaresWithHole() throws Exception {
+//        new UnionChecker()
+//                .add("POLYGON ((19.2 15.25, 28.35 15.25, 28.35 8.35, 19.2 8.35, 19.2 15.25), (20 14, 22.75 14, 22.75 11.9, 20 11.9, 20 14))")
+//                .add("POLYGON ((11.35 21.3, 23.7 21.3, 23.7 10.8, 11.35 10.8, 11.35 21.3))")
+//                .checkUnchanged();
+//    }
     
     @Test
     public void performanceTestVTBlocks() throws Exception {
-        new UnionChecker().add(vtblocks).check();
+        new UnionChecker().add(readBlocks()).check();
     }
     
 }
