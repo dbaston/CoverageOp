@@ -8,6 +8,7 @@ import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.operation.linemerge.LineMerger;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -26,7 +27,12 @@ public class DuplicateSegmentRemover {
     }
     
     public DuplicateSegmentRemover(Collection<Geometry> geoms) {
-        lines = new HashSet(100*geoms.size(), 0.5F);
+        int numPoints = 0;
+		for (Geometry g : geoms) {
+	   		numPoints += g.getNumPoints();
+		} 
+	    
+		lines = new HashSet(numPoints);
         for (Geometry g : geoms) {
             add(g);
         }
