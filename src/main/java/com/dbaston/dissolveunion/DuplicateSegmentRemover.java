@@ -5,12 +5,16 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineSegment;
 import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.operation.linemerge.LineMerger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /** A DuplicateSegmentRemover extracts the LineSegments that make up a set of
  * supplied Polygon or MultiPolygon geometries, and provides methods to 
@@ -20,7 +24,7 @@ import java.util.HashSet;
  * @author dbaston
  */
 public class DuplicateSegmentRemover {
-    private HashSet<LineSegment> lines;
+    protected HashSet<LineSegment> lines;
     
     public DuplicateSegmentRemover() {
         lines = new HashSet<>(); 
@@ -38,6 +42,17 @@ public class DuplicateSegmentRemover {
         }
     }
     
+	public Set<LineSegment> getUniqueSegments() {
+		return lines;
+	}
+	
+	protected void processSegment(LineSegment ls) {
+		ls.normalize();
+		if (!lines.remove(ls)) {
+			lines.add(ls);
+		}
+	}
+	
     /** add extracts the Segments that make up a geometry, and adds them to
      *  the hash of Segments.
      *  @param geom the Polygon or MultiPolygon to be added
@@ -68,15 +83,35 @@ public class DuplicateSegmentRemover {
         for (int i = 0; i < rings.length; i++) {
             for (int j = 0; j < rings[i].length - 1; j++) {
                 LineSegment ls = new LineSegment (rings[i][j], rings[i][j+1]);
-                ls.normalize();
-                
-                if (!lines.remove(ls)) {
-                    lines.add(ls);
-                }
+                processSegment(ls);
             }
         }
     }
     
+	/** getLineSegments converts the collection of LineSegment
+     *  objects into LineStrings using the supplied GeometryFactory.
+	 *  @param gfact a GeometryFactory to use for creating LineStrings
+	 *  @return Array of LineString objects, with one LineString per
+	 *          LineSegment.
+	 */
+	public LineString[] getLineStrings(GeometryFactory gfact) {
+		LineString[] linestrings = new LineString[lines.size()];
+		int i = 0;
+		for (LineSegment l : getUniqueSegments()) {
+            linestrings[i++] = l.toGeometry(gfact);
+        }
+		return linestrings;
+	}
+	
+	/** getMultiLineString converts the collection of LineSegment objects
+	 *  into a MultiLineString using the supplied GeometryFactory.
+	 *  @param gfact a GeometryFactory to use for creating LineStrings
+	 *  @return MultiLineString with one LineString per LineSegment.
+	 */
+	public MultiLineString getMultiLineString(GeometryFactory gfact) {
+		return gfact.createMultiLineString(getLineStrings(gfact));
+	}
+	
     /** getMergedLineSegments converts the supplied collection of LineSegment
      *  objects into LineStrings using the supplied GeometryFactory, and 
      *  merges the resultant LineStrings using a LineMerger.  The returned
@@ -84,9 +119,9 @@ public class DuplicateSegmentRemover {
      * @param gfact
      * @return Collection of LineString objects.
      */
-    protected Collection<LineString> getMergedLineSegments(GeometryFactory gfact) {
+    public Collection<LineString> getMergedLineSegments(GeometryFactory gfact) {
         LineMerger lm = new LineMerger();
-        for (LineSegment l : lines) {
+        for (LineSegment l : getUniqueSegments()) {
             lm.add(l.toGeometry(gfact));
         }
         return lm.getMergedLineStrings();    
