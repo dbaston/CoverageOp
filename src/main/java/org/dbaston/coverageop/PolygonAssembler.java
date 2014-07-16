@@ -1,4 +1,4 @@
-package com.dbaston.dissolveunion;
+package org.dbaston.coverageop;
 
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;

@@ -1,4 +1,4 @@
-package com.dbaston.dissolveunion;
+package org.dbaston.coverageop;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -15,7 +15,7 @@ import java.util.HashSet;
  *
  * @author dbaston
  */
-public class DissolveUnion {
+public class CoverageUnion {
     /** allRingsClosed determines if every one of the supplied LineStrings
      *  forms a closed ring.
      * @param rings
@@ -131,8 +131,8 @@ public class DissolveUnion {
         
         // Get the unique segments and convert them into linesrings, then
         // merge the linestrings.
-        DuplicateSegmentRemover dsr = new DuplicateSegmentRemover(geoms);
-        Collection<LineString> rings = dsr.getMergedLineSegments(gfact);
+        DuplicateSegmentFinder dsr = new DuplicateSegmentFinder(geoms, false);
+        Collection<LineString> rings = dsr.getUniqueMergedLineSegments(gfact);
 
         //System.out.println(gfact.buildGeometry(rings));
         
@@ -141,4 +141,8 @@ public class DissolveUnion {
         Geometry result = gfact.createMultiPolygon(polys);
         return result;
     };
+
+	public static Geometry union(Collection<Geometry> geoms) {
+		return union(geoms, null);
+	}
 }

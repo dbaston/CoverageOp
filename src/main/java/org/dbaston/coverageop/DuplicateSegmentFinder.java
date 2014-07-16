@@ -1,4 +1,4 @@
-package com.dbaston.dissolveunion;
+package org.dbaston.coverageop;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -9,34 +9,34 @@ import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.operation.linemerge.LineMerger;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-/** A DuplicateSegmentRemover extracts the LineSegments that make up a set of
+/** A DuplicateSegmentFinder extracts the LineSegments that make up a set of
  * supplied Polygon or MultiPolygon geometries, and provides methods to 
- * retrieve only the segments that are unique.  Currently, the class assumes
- * that a segment will be shared by at most two input features, and will
+ * retrieve only the segments that are or are not unique.  Currently, the class
+ * assumes that a segment will be shared by at most two input features, and will
  * return incorrect results if this condition is not met.
  * @author dbaston
  */
-public class DuplicateSegmentRemover {
+public class DuplicateSegmentFinder {
     protected HashSet<LineSegment> lines;
+	protected HashSet<LineSegment> duplicateLines;
+	private boolean retainUnique;
     
-    public DuplicateSegmentRemover() {
+    public DuplicateSegmentFinder(boolean retainUnique) {
         lines = new HashSet<>(); 
     }
     
-    public DuplicateSegmentRemover(Collection<Geometry> geoms) {
+    public DuplicateSegmentFinder(Collection<Geometry> geoms, boolean retainUnique) {
         int numPoints = 0;
 		for (Geometry g : geoms) {
 	   		numPoints += g.getNumPoints();
 		} 
 	    
 		lines = new HashSet(numPoints);
+		duplicateLines = new HashSet(numPoints);
         for (Geometry g : geoms) {
             add(g);
         }
@@ -45,11 +45,17 @@ public class DuplicateSegmentRemover {
 	public Set<LineSegment> getUniqueSegments() {
 		return lines;
 	}
+
+	public Set<LineSegment> getDuplicateSegments() {
+		return duplicateLines;
+	}
 	
 	protected void processSegment(LineSegment ls) {
 		ls.normalize();
 		if (!lines.remove(ls)) {
 			lines.add(ls);
+		} else if (this.retainUnique) {
+			duplicateLines.add(ls);
 		}
 	}
 	
@@ -88,13 +94,13 @@ public class DuplicateSegmentRemover {
         }
     }
     
-	/** getLineSegments converts the collection of LineSegment
+	/** getUniqueLineSegments converts the collection of LineSegment
      *  objects into LineStrings using the supplied GeometryFactory.
 	 *  @param gfact a GeometryFactory to use for creating LineStrings
 	 *  @return Array of LineString objects, with one LineString per
 	 *          LineSegment.
 	 */
-	public LineString[] getLineStrings(GeometryFactory gfact) {
+	public LineString[] getUniqueLineStrings(GeometryFactory gfact) {
 		LineString[] linestrings = new LineString[lines.size()];
 		int i = 0;
 		for (LineSegment l : getUniqueSegments()) {
@@ -103,23 +109,23 @@ public class DuplicateSegmentRemover {
 		return linestrings;
 	}
 	
-	/** getMultiLineString converts the collection of LineSegment objects
-	 *  into a MultiLineString using the supplied GeometryFactory.
+	/** getUniqueMultiLineString converts the collection of LineSegment objects
+  into a MultiLineString using the supplied GeometryFactory.
 	 *  @param gfact a GeometryFactory to use for creating LineStrings
 	 *  @return MultiLineString with one LineString per LineSegment.
 	 */
-	public MultiLineString getMultiLineString(GeometryFactory gfact) {
-		return gfact.createMultiLineString(getLineStrings(gfact));
+	public MultiLineString getUniqueMultiLineString(GeometryFactory gfact) {
+		return gfact.createMultiLineString(getUniqueLineStrings(gfact));
 	}
 	
-    /** getMergedLineSegments converts the supplied collection of LineSegment
-     *  objects into LineStrings using the supplied GeometryFactory, and 
-     *  merges the resultant LineStrings using a LineMerger.  The returned
+    /** getUniqueMergedLineSegments converts the supplied collection of 
+	 * LineSegment objects into LineStrings using the supplied GeometryFactory,
+	 * and merges the resultant LineStrings using a LineMerger.  The returned
      *  LineStrings may or may not form closed rings.
      * @param gfact
      * @return Collection of LineString objects.
      */
-    public Collection<LineString> getMergedLineSegments(GeometryFactory gfact) {
+    public Collection<LineString> getUniqueMergedLineSegments(GeometryFactory gfact) {
         LineMerger lm = new LineMerger();
         for (LineSegment l : getUniqueSegments()) {
             lm.add(l.toGeometry(gfact));

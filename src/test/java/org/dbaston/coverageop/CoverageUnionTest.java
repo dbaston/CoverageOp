@@ -1,10 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-package com.dbaston.dissolveunion;
+package org.dbaston.coverageop;
 
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -21,7 +15,7 @@ import org.junit.Test;
  *
  * @author dbaston
  */
-public class DissolveUnionTest {
+public class CoverageUnionTest {
     class UnionChecker {
         public ArrayList<Geometry> geoms;
 
@@ -47,7 +41,7 @@ public class DissolveUnionTest {
             long startTime, endTime;
             
             startTime = System.currentTimeMillis();
-            Geometry result = DissolveUnion.union(geoms, null);
+            Geometry result = CoverageUnion.union(geoms, null);
             endTime = System.currentTimeMillis();
             
             System.out.println("DU: (" + (endTime-startTime)/1000.0 + ") " + result.toString());
@@ -76,13 +70,12 @@ public class DissolveUnionTest {
         
         public void check() {
             Geometry result = getDissolveResult();
-//            Geometry refResult = getReferenceResult();
-//
-//            assertTrue(result.equalsTopo(refResult));
+            Geometry refResult = getReferenceResult();
+            assertTrue(result.equalsTopo(refResult));
         }
     }
     
-    public DissolveUnionTest() {
+    public CoverageUnionTest() {
     }
     
     public static Geometry geometryCollectionUnion(Collection<Geometry> geoms) {
